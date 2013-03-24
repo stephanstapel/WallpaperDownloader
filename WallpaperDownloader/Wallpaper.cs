@@ -8,6 +8,12 @@ using System.Runtime.InteropServices;
 
 namespace WallpaperDownloader
 {
+    /// <summary>
+    /// Source:
+    /// http://stackoverflow.com/questions/8414635/how-do-i-change-the-wallpaper-programatically
+    ///
+    /// Thanks to the original author Korcholis (http://stackoverflow.com/users/616225/korcholis)
+    /// </summary>
     public sealed class Wallpaper
     {
         Wallpaper() { }
