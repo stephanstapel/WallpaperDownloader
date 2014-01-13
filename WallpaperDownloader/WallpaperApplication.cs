@@ -16,13 +16,13 @@ namespace WallpaperDownloader
 
         public WallpaperApplication()
         {
-            this.MaxTries = 5;
+            this.MaxTries = 2;
             this.DelayBetweenTriesSeconds = 15;
             this.DelayInitialSeconds = 15;
         }
 
 
-        private string _downloadPhotoOfTheDayIndexFile()
+        private string _downloadNationalGeographicPhotoOfTheDayIndexFile()
         {
             string retval = "";
             try
@@ -44,7 +44,32 @@ namespace WallpaperDownloader
             }
 
             return retval;
-        } // !_downloadPhotoOfTheDayIndexFile()
+        } // !_downloadNationalGeographicPhotoOfTheDayIndexFile()
+
+
+        private string _downloadBingPhotoOfTheDayIndexFile()
+        {
+            string retval = "";
+            try
+            {
+                using (WebClient Client = new WebClient())
+                {
+                    byte[] data = Client.DownloadData("http://www.bing.com/HPImageArchive.aspx?format=xml&idx=0&n=1&mkt=en-US");
+                    System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                    retval = enc.GetString(data);
+                }
+            }
+            catch (System.Net.WebException)
+            {
+                throw new Exception("Error fetching index file");
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+
+            return retval;
+        } // !_downloadBingPhotoOfTheDayIndexFile()
 
 
         private string _generateTargetPath()
@@ -72,6 +97,15 @@ namespace WallpaperDownloader
         {
             System.Threading.Thread.Sleep(this.DelayInitialSeconds * 1000); // initial sleep
 
+            if (!_tryDownloadNationalGeographicWallpaper())
+            {
+                _tryDownloadBingWallpaper();
+            }
+        } // !run()
+
+
+        private bool _tryDownloadNationalGeographicWallpaper()
+        {
             // try a defined number of times to download the index file
             string content = "";
             int numTries = 0;
@@ -79,7 +113,7 @@ namespace WallpaperDownloader
             {
                 try
                 {
-                    content = _downloadPhotoOfTheDayIndexFile();
+                    content = _downloadNationalGeographicPhotoOfTheDayIndexFile();
                 }
                 catch
                 {
@@ -106,9 +140,57 @@ namespace WallpaperDownloader
                     {
                         Client.DownloadFile(url, targetPath);
                         Wallpaper.Set(targetPath, Wallpaper.Style.Stretched);
+                        return true;
                     }
                 }
             }
-        } // !run()
+
+            return false;
+        } // !_tryDownloadNationalGeographicWallpaper()
+
+
+        private bool _tryDownloadBingWallpaper()
+        {
+            // try a defined number of times to download the index file
+            string content = "";
+            int numTries = 0;
+            while (numTries < this.MaxTries)
+            {
+                try
+                {
+                    content = _downloadBingPhotoOfTheDayIndexFile();
+                }
+                catch
+                {
+                    numTries++;
+                    System.Threading.Thread.Sleep(this.DelayBetweenTriesSeconds * 1000);
+                }
+
+                if (content.Length > 0)
+                {
+                    break;
+                }
+            }
+
+            HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(content);
+            HtmlNode node = doc.DocumentNode.QuerySelector("url");
+            if (node != null)
+            {
+                string url = String.Format("http://www.bing.com/{0}", node.InnerText);
+                if (url.Length > 0)
+                {
+                    string targetPath = _generateTargetPath();
+                    using (WebClient Client = new WebClient())
+                    {
+                        Client.DownloadFile(url, targetPath);
+                        Wallpaper.Set(targetPath, Wallpaper.Style.Stretched);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        } // !_tryDownloadBingWallpaper()
     }
 }
